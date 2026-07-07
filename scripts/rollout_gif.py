@@ -37,10 +37,8 @@ while shown < n_show and ep < 20:
         a, _ = model.predict(obs, deterministic=True)
         obs, r, term, trunc, info = env.step(a)
         ep_frames.append(env.render())
-        if term:
-            done_ok = True
-            break
-        if trunc:
+        if term or trunc:
+            done_ok = bool(info["success"])   # Reach terminates on success; Lift holds to truncation
             break
     if done_ok:
         frames.extend(ep_frames)

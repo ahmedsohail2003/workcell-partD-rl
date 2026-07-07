@@ -142,9 +142,11 @@ class ReachEnv(WorkCellEnv):
 
 
 class LiftEnv(WorkCellEnv):
-    """Grasp the block and raise it above 7 cm. Dense shaping."""
+    """Grasp the block and lift-and-hold it at a natural pick height. Dense
+    shaping; success = block held above LIFT_Z at episode end."""
 
-    LIFT_Z = 0.07
+    LIFT_Z = 0.07        # success line: block center clear of the table
+    TARGET_Z = 0.14      # preferred hold height (natural pick; arm reaches ~0.5 m)
 
     def __init__(self, max_steps: int = 150, **kw):
         super().__init__(max_steps=max_steps, **kw)
@@ -176,27 +178,32 @@ class LiftEnv(WorkCellEnv):
         self._apply_action(action)
         b, t = self.block_pos, self.tcp
         d = float(np.linalg.norm(b - t))
-        lift = float(np.clip(b[2] - BLOCK_HALF, 0.0, self.LIFT_Z))
         above = bool(b[2] > self.LIFT_Z)
 
+        lift = float(np.clip(b[2] - BLOCK_HALF, 0.0, self.LIFT_Z))
         reward = 0.5 * (1 - np.tanh(10.0 * d))               # reach shaping
         if d < 0.03:                                          # proximity-gated grasp hint
             jaw = float(self.data.qpos[5])
             reward += 0.25 * (JAW_OPEN - jaw) / (JAW_OPEN + 0.174)
-        reward += 3.0 * lift / self.LIFT_Z                    # lift shaping
-        reward += 5.0 if above else 0.0                       # per-step HOLD bonus (see note)
+        reward += 3.0 * lift / self.LIFT_Z                    # steep climb, saturates at 7 cm
+        reward += 5.0 if above else 0.0                       # in-goal (lifted) bonus
+        reward -= 4.0 * max(0.0, b[2] - self.TARGET_Z)        # soft cap above TARGET_Z
         reward -= 0.005 * float(np.square(action).sum())
+        # Height term = steep saturating climb (strong "get off the table" drive)
+        # + a soft cap above TARGET_Z. An earlier tent that PEAKED at TARGET_Z
+        # controlled height well but halved the near-floor climb gradient, so the
+        # block often never left the table (30% success). Keeping v2's steep
+        # climb-to-7cm keeps lifting reliable; the -4*(z-TARGET_Z) cap replaces
+        # v2's flat-above-goal region (which let the arm over-extend to ~0.5 m)
+        # so the block settles at a natural pick height instead.
 
-        # Lift-and-hold, NOT terminate-on-success. The original design ended the
-        # episode the instant the block crossed LIFT_Z while dense shaping kept
-        # paying ~2.9/step: succeeding forfeited ~120 (discounted, gamma=0.98)
-        # of future shaping for a one-time +5, so the optimal policy learned to
-        # hover ~7 mm BELOW the line (SAC: 20/20 grasp, median lift 6.3 cm, only
-        # 1/20 crossing). The block is IK-verified liftable to ~11 cm, so the
-        # ceiling was the reward, not the arm. Fix: pay the +5 every step the
-        # block stays above the line and always run to max_steps; success is now
-        # "held above LIFT_Z at the end" -- lingering IN the goal region beats
-        # lingering just outside it (the intent of potential-based shaping).
+        # Lift-and-hold, NOT terminate-on-success: ending the episode the instant
+        # the block crossed LIFT_Z while dense shaping kept paying forfeited ~120
+        # (discounted) of future reward for a one-time bonus, so the original
+        # policy hovered ~7 mm BELOW the line (20/20 grasp, median 6.3 cm, 1/20
+        # crossing) even though the block is IK-verified liftable to ~0.5 m.
+        # Never terminating + per-step in-goal bonus makes success = held above
+        # LIFT_Z at episode end.
         terminated = False
         truncated = self._t >= self.max_steps
         return self._obs(), reward, terminated, truncated, {

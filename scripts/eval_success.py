@@ -31,10 +31,8 @@ for run in sorted(RUNS.glob(f"{task}_*_s*")):
         for _ in range(env.max_steps):
             a, _ = model.predict(obs, deterministic=True)
             obs, r, term, trunc, info = env.step(a)
-            if term:
-                succ += info["success"]
-                break
-            if trunc:
+            if term or trunc:
+                succ += int(info["success"])     # final-step success (Reach: on term; Lift: held to trunc)
                 break
     rate = succ / n_eps
     summary.setdefault(algo, []).append(rate)

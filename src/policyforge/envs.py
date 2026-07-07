@@ -177,18 +177,28 @@ class LiftEnv(WorkCellEnv):
         b, t = self.block_pos, self.tcp
         d = float(np.linalg.norm(b - t))
         lift = float(np.clip(b[2] - BLOCK_HALF, 0.0, self.LIFT_Z))
-        success = bool(b[2] > self.LIFT_Z)
+        above = bool(b[2] > self.LIFT_Z)
 
         reward = 0.5 * (1 - np.tanh(10.0 * d))               # reach shaping
         if d < 0.03:                                          # proximity-gated grasp hint
             jaw = float(self.data.qpos[5])
             reward += 0.25 * (JAW_OPEN - jaw) / (JAW_OPEN + 0.174)
         reward += 3.0 * lift / self.LIFT_Z                    # lift shaping
-        reward += 5.0 if success else 0.0
+        reward += 5.0 if above else 0.0                       # per-step HOLD bonus (see note)
         reward -= 0.005 * float(np.square(action).sum())
 
-        terminated = success
+        # Lift-and-hold, NOT terminate-on-success. The original design ended the
+        # episode the instant the block crossed LIFT_Z while dense shaping kept
+        # paying ~2.9/step: succeeding forfeited ~120 (discounted, gamma=0.98)
+        # of future shaping for a one-time +5, so the optimal policy learned to
+        # hover ~7 mm BELOW the line (SAC: 20/20 grasp, median lift 6.3 cm, only
+        # 1/20 crossing). The block is IK-verified liftable to ~11 cm, so the
+        # ceiling was the reward, not the arm. Fix: pay the +5 every step the
+        # block stays above the line and always run to max_steps; success is now
+        # "held above LIFT_Z at the end" -- lingering IN the goal region beats
+        # lingering just outside it (the intent of potential-based shaping).
+        terminated = False
         truncated = self._t >= self.max_steps
         return self._obs(), reward, terminated, truncated, {
-            "success": success, "is_success": success, "distance": d, "block_z": float(b[2]),
+            "success": above, "is_success": above, "distance": d, "block_z": float(b[2]),
         }

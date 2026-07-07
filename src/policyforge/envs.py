@@ -160,6 +160,7 @@ class LiftEnv(WorkCellEnv):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        self._reset_arm()
         r = self.np_random.uniform(0.19, 0.26)
         th = self.np_random.uniform(np.deg2rad(-20), np.deg2rad(30))
         xy = np.array([r * np.sin(th), -r * np.cos(th)])

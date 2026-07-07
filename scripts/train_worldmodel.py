@@ -81,4 +81,7 @@ for rnd, (n_new, pol) in enumerate([(8_000, "random"), (3_000, "planner"), (3_00
           f"planner success={sr * 100:3.0f}%  mean final dist={md * 1000:.1f}mm", flush=True)
 
 np.savez(OUT / "runs" / f"reach_wm_s{seed}.npz", history=np.array(history))
-print(f"\ndone in {(time.perf_counter() - t0) / 60:.1f} min; history saved")
+import torch
+
+torch.save(model.state_dict(), OUT / "runs" / f"reach_wm_s{seed}_model.pt")
+print(f"\ndone in {(time.perf_counter() - t0) / 60:.1f} min; history + model saved")

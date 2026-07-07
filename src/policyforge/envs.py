@@ -136,7 +136,9 @@ class ReachEnv(WorkCellEnv):
         reward = -d - 0.005 * float(np.square(action).sum()) + (1.0 if success else 0.0)
         terminated = success
         truncated = self._t >= self.max_steps
-        return self._obs(), reward, terminated, truncated, {"success": success, "distance": d}
+        return self._obs(), reward, terminated, truncated, {
+            "success": success, "is_success": success, "distance": d,  # is_success: SB3 EvalCallback convention
+        }
 
 
 class LiftEnv(WorkCellEnv):
@@ -186,4 +188,6 @@ class LiftEnv(WorkCellEnv):
 
         terminated = success
         truncated = self._t >= self.max_steps
-        return self._obs(), reward, terminated, truncated, {"success": success, "distance": d, "block_z": float(b[2])}
+        return self._obs(), reward, terminated, truncated, {
+            "success": success, "is_success": success, "distance": d, "block_z": float(b[2]),
+        }

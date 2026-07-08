@@ -19,24 +19,36 @@ RUNS = OUT / "runs"
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 colors = {"ppo": "#d62728", "sac": "#1f77b4"}
 
-for algo in ("ppo", "sac"):
-    curves = []
-    for run in sorted(RUNS.glob(f"{task}_{algo}_s*")):
+if task == "lift":
+    # Per-seed curves, NOT mean±std: the story is that SAC escapes a strong
+    # grasp-without-lift local optimum at different times per seed, so an
+    # aggregate band would hide the staggered breakthroughs that are the point.
+    seed_colors = ["#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e"]
+    for i, run in enumerate(sorted(RUNS.glob("lift_sac_s*"))):
         ev = np.load(run / "evaluations.npz")
         steps, results = ev["timesteps"], ev["results"].mean(axis=1)
-        curves.append((steps, results))
-    if not curves:
-        continue
-    # Interpolate onto a common grid
-    grid = np.linspace(0, min(c[0][-1] for c in curves), 60)
-    vals = np.stack([np.interp(grid, s, r) for s, r in curves])
-    mu, sd = vals.mean(0), vals.std(0)
-    ax.plot(grid, mu, color=colors[algo], label=f"{algo.upper()} (n={len(curves)} seeds)")
-    ax.fill_between(grid, mu - sd, mu + sd, color=colors[algo], alpha=0.2)
+        ax.plot(steps, results, color=seed_colors[i % len(seed_colors)],
+                label=f"SAC seed {run.name.split('_s')[-1]}", linewidth=1.6)
+    ax.set_title("lift: SAC per-seed return — staggered escape from a grasp-without-lift local optimum")
+else:
+    for algo in ("ppo", "sac"):
+        curves = []
+        for run in sorted(RUNS.glob(f"{task}_{algo}_s*")):
+            ev = np.load(run / "evaluations.npz")
+            steps, results = ev["timesteps"], ev["results"].mean(axis=1)
+            curves.append((steps, results))
+        if not curves:
+            continue
+        # Interpolate onto a common grid
+        grid = np.linspace(0, min(c[0][-1] for c in curves), 60)
+        vals = np.stack([np.interp(grid, s, r) for s, r in curves])
+        mu, sd = vals.mean(0), vals.std(0)
+        ax.plot(grid, mu, color=colors[algo], label=f"{algo.upper()} (n={len(curves)} seeds)")
+        ax.fill_between(grid, mu - sd, mu + sd, color=colors[algo], alpha=0.2)
+    ax.set_title(f"{task}: PPO vs SAC — mean ± std over seeds")
 
 ax.set_xlabel("environment steps")
 ax.set_ylabel("eval return (20 episodes)")
-ax.set_title(f"{task}: PPO vs SAC — mean ± std over seeds")
 ax.legend()
 ax.grid(alpha=0.3)
 fig.tight_layout()

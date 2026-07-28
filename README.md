@@ -1,8 +1,16 @@
-# PolicyForge — model-free RL vs a learned world model, on a custom work-cell
+# WorkCell Part D — PolicyForge: model-free RL vs a learned world model
+
+> **Part D of the _WorkCell_ series** — one simulated industrial work-cell, five learning approaches:
+> [A · imitation](https://github.com/ahmedsohail2003/workcell-partA-imitation) ·
+> [B · VLA](https://github.com/ahmedsohail2003/workcell-partB-vla) ·
+> [C · grasping](https://github.com/ahmedsohail2003/workcell-partC-grasping) ·
+> [D · RL + world model](https://github.com/ahmedsohail2003/workcell-partD-rl) ·
+> E · ROS 2 (in progress) ·
+> [datasets & models on 🤗](https://huggingface.co/ahmedsohail2003)
 
 **Reinforcement learning and model-based control on the author's SO-ARM100
 MuJoCo work-cell** — the same robot and scene as the companion projects
-[sim2cell](../sim2cell) (imitation learning) and [graspsight](../graspsight)
+[Part A · Sim2Cell](https://github.com/ahmedsohail2003/workcell-partA-imitation) (imitation learning) and [Part C · GraspSight](https://github.com/ahmedsohail2003/workcell-partC-grasping)
 (classical perception + planning). Three learning paradigms, one robot:
 
 | Project | Paradigm | How the task gets solved |
